@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Music Orb</title>
+		<!--<link rel="shortcut icon" href="/images/cheese.ico" /> >
+		<!--<link rel="stylesheet" href="<?php if (isset($dirPrefix)) { echo $dirPrefix . '/styles/Old/styles.css'; }?>"/>-->
+        <style>
+        @import url('https://fonts.googleapis.com/css?family=Open+Sans:400,700');
+html, body, #console ul { margin: 0; padding: 0; font-family: 'Open sans', sans-serif; user-select: none; cursor: default;  }
+canvas { display: block; cursor: default; }
+        </style>
+		<script>
+            var PI2 = Math.PI * 2;
+var canvas, ctx; // Canvas, 2d context 
+var scrolled = true, canvasHlf = {w: 0, h: 0}; // If the scroll bar is at the bottom of the console
+
+var bars = 64, segment = (Math.PI*1)/(bars - 1), angOffset = (Math.PI*1), baseRadius = 256, magMult = 0.35;
+var canvas, canvasWidth, canvasHeight, barWidth, binWidth = 1024 / bars, timer = 0; 
+var audio, audioContext = new (window.AudioContext || window.webAudioContext || window.webkitAudioContext)(), audioProcessor, audioAnalyser, frequencyData;
+var bufferSize, barData = new Array();
+var lastCalledTime = Date.now();
+
+// Socket IO
+//var socket = io();
+
+function drawOrb(distMult = 1, xMult = 1, angOffset = 0) {
+    ctx.beginPath();
+    ctx.moveTo(canvasHlf.w,canvasHlf.h);
+    for (var i = 0; i <= bars; i++) {
+        var curAng = segment * i + angOffset;
+        var specDat = barData[i];
+        if (i >= bars) specDat = barData[0];
+        var rad = baseRadius + barData[i] * distMult * magMult;
+        var pos = {x: canvasHlf.w + Math.sin(curAng) * rad * xMult, y: canvasHlf.h + Math.cos(curAng) * rad };
+        if (i == 0) ctx.moveTo(pos.x, pos.y);
+        else ctx.lineTo(pos.x, pos.y);
+    }
+    ctx.closePath();
+    ctx.fill();
+}
+
+// Draw canvas
+function canvasDraw() {
+    var deltaTime = 0;
+    if(!lastCalledTime) lastCalledTime = Date.now();
+    else {
+        deltaTime = (Date.now() - lastCalledTime)/1000;
+        lastCalledTime = Date.now();
+    }
+
+    ctx.moveTo(0,0);
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = "rgba(247,247,247,255)";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    audioAnalyser.getByteFrequencyData(frequencyData);
+    ctx.moveTo(0,0);
+
+    var barCounter = 0, divisor = 0;
+    barData[barCounter] = 0;
+    for(var i = 3; i < Math.min(bufferSize/2.0,20000.0) ; i*=1.01)
+	{ 
+        var x = ((Math.log(i)/Math.log(Math.min(bufferSize/2.0,20000.0)))*800 - 158)*2; 
+        var h = Math.abs(frequencyData[Math.floor(i)]);
+        if (x <= barCounter * binWidth) {
+            barData[barCounter] += h;
+            divisor++;
+        }
+        else {
+            barData[barCounter] /= divisor;
+            barCounter++;
+            divisor = 0;
+            if (barCounter < bars) barData[barCounter] = 0;
+            else break;
+        }
+    }
+    
+    //timer += deltaTime * 0.1;
+
+    ctx.fillStyle = "rgba(242,123,0,255)";
+    drawOrb(1.25, 1, timer);
+    drawOrb(1.25, -1, -timer+angOffset*0);
+
+    ctx.fillStyle = "rgba(39,44,53,255)";
+    drawOrb(1, 1, timer);
+    drawOrb(1, -1, -timer+angOffset*0);
+
+    window.requestAnimationFrame(canvasDraw);
+}
+
+// Resize canvas to fill page
+function windowResize() {
+    if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+		canvasWidth = canvas.width;
+        canvasHeight = canvas.height;
+		barWidth = canvasWidth/bars;
+        canvasHlf = {w: canvas.width*0.5, h: canvas.height*0.5};
+    }
+}
+
+// Page init
+function pageLoaded() {
+    canvas = document.getElementById('c');
+    audio = document.getElementsByTagName("audio")[0];
+    if (canvas && audio) {
+        ctx = canvas.getContext('2d');
+        windowResize();
+        window.addEventListener('resize', windowResize);
+		
+        audio.play();
+
+		audioProcessor = audioContext.createScriptProcessor(1024);
+        audioAnalyser = audioContext.createAnalyser();
+        audioAnalyser.fftSize = 2048*8;
+        //audioAnalyser.maxDecibels = 0; audioAnalyser.minDecibels = -80;
+        audioAnalyser.maxDecibels = -25; audioAnalyser.minDecibels = -70;
+        audioAnalyser.smoothingTimeConstant = 0.8;
+        //frequencyData = new Float32Array(audioAnalyser.frequencyBinCount);
+        frequencyData = new Uint8Array(audioAnalyser.frequencyBinCount);
+        audioProcessor.connect(audioContext.destination);
+        audioAnalyser.connect(audioProcessor);
+        
+        var sound = audioContext.createMediaElementSource(audio);
+        sound.connect(audioAnalyser);
+        sound.connect(audioContext.destination);
+        audioAnalyser.getByteFrequencyData(frequencyData);
+        bufferSize = frequencyData.length;
+        canvasDraw();
+    }
+}
+window.addEventListener('load', pageLoaded);
+        </script>
+	</head>
+	<body>
+		<main>
+            <audio crossorigin="anonymous" autoplay>
+                <source src="http://listen.simulatorradio.com:8000/stream" type="audio/mpeg" />
+            </audio>
+            <canvas id="c" width="1024" height="512"></canvas>
+		</main>
+	</body>
+</html>
