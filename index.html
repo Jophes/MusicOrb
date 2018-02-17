@@ -30,7 +30,7 @@ function drawOrb(distMult = 1, xMult = 1, angOffset = 0) {
         var curAng = segment * i + angOffset;
         var specDat = barData[i];
         if (i >= bars) specDat = barData[0];
-        var rad = baseRadius + barData[i] * distMult * magMult;
+        var rad = baseRadius + (barData[i] + distMult) * magMult;
         var pos = {x: canvasHlf.w + Math.sin(curAng) * rad * xMult, y: canvasHlf.h + Math.cos(curAng) * rad };
         if (i == 0) ctx.moveTo(pos.x, pos.y);
         else ctx.lineTo(pos.x, pos.y);
@@ -50,7 +50,7 @@ function canvasDraw() {
 
     ctx.moveTo(0,0);
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-    ctx.fillStyle = "rgba(247,247,247,255)";
+    ctx.fillStyle = "rgba(39,44,44,255)";
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     audioAnalyser.getByteFrequencyData(frequencyData);
     ctx.moveTo(0,0);
@@ -62,7 +62,7 @@ function canvasDraw() {
         var x = ((Math.log(i)/Math.log(Math.min(bufferSize/2.0,20000.0)))*800 - 158)*2; 
         var h = Math.abs(frequencyData[Math.floor(i)]);
         if (x <= barCounter * binWidth) {
-            barData[barCounter] += h;
+            barData[barCounter] += h*1.5;
             divisor++;
         }
         else {
@@ -77,12 +77,12 @@ function canvasDraw() {
     //timer += deltaTime * 0.1;
 
     ctx.fillStyle = "rgba(242,123,0,255)";
-    drawOrb(1.25, 1, timer);
-    drawOrb(1.25, -1, -timer+angOffset*0);
+    drawOrb(32, 1, timer);
+    drawOrb(32, -1, -timer+angOffset*0);
 
-    ctx.fillStyle = "rgba(39,44,53,255)";
-    drawOrb(1, 1, timer);
-    drawOrb(1, -1, -timer+angOffset*0);
+    ctx.fillStyle =  "rgba(39,44,44,255)";//"rgba(247, 247, 247, 255)";
+    drawOrb(0, 1, timer);
+    drawOrb(0, -1, -timer+angOffset*0);
 
     window.requestAnimationFrame(canvasDraw);
 }
@@ -135,7 +135,11 @@ window.addEventListener('load', pageLoaded);
 	<body>
 		<main>
             <audio crossorigin="anonymous" autoplay>
-                <source src="http://listen.simulatorradio.com:8000/stream" type="audio/mpeg" />
+				<!--<source src="http://pulseedm.cdnstream1.com:8124/1373_128.m3u" type="audio/mpeg"/>
+				<source src="http://www.listenlive.eu/bbcradio1.m3u" type="audio/mpeg"/>
+				<source src="http://cdn.nrjaudio.fm/adwz1/fi/35001/mp3_128.mp3" type="audio/mpeg"/>-->
+				<source src="http://yp.shoutcast.com/sbin/tunein-station.pls?id=485847" type="audio/mpeg"/>
+                <!--<source src="http://listen.simulatorradio.com:8000/stream" type="audio/mpeg" />-->
             </audio>
             <canvas id="c" width="1024" height="512"></canvas>
 		</main>
